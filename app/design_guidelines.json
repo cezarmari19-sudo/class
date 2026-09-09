@@ -1,0 +1,175 @@
+{
+  "app_name": "ClassLobby",
+  "personality": "4 Tactile / Playful LIGHT",
+  "personality_one_liner": "A friendly, vibrant, and highly tactile environment that turns classroom management into an engaging, gamified experience without feeling overwhelming.",
+  "color": {
+    "surface": "#FDFBF7",
+    "onSurface": "#1C1C1E",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1C1C1E",
+    "surfaceTertiary": "#F1F8E9",
+    "onSurfaceTertiary": "#2E7D32",
+    "surfaceInverse": "#1C1C1E",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#00E676",
+    "onBrand": "#1C1C1E",
+    "brandPrimary": "#00C853",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#FFD600",
+    "onBrandSecondary": "#1C1C1E",
+    "brandTertiary": "#B9F6CA",
+    "onBrandTertiary": "#1C1C1E",
+    "success": "#00C853",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FFD600",
+    "onWarning": "#1C1C1E",
+    "error": "#D50000",
+    "onError": "#FFFFFF",
+    "info": "#00BFA5",
+    "onInfo": "#FFFFFF",
+    "border": "#E0E0E0",
+    "borderStrong": "#BDBDBD",
+    "divider": "#EEEEEE",
+    "muted": "#757575"
+  },
+  "typography": {
+    "displayFontFamily": "Fredoka",
+    "textFontFamily": "Nunito",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous touch targets and friendly card margins. Use 'md' and 'lg' primarily for card gaps. Ensure sticky CTAs sit well above safe areas.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "2",
+  "navigation": "stack_only",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "false",
+    "do's": ["Skip glass to keep the UI tactile, solid, and structurally playful."],
+    "dont's": ["Do not use blur or glassmorphism on this personality."]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-blur",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Auth",
+      "purpose": "Secure, fast entry using a generated random account code (Mullvad style).",
+      "states": {
+        "loading": "Centered brand-colored spinner.",
+        "empty": "No saved accounts shown.",
+        "error": "Toast or inline text showing 'Invalid code' below the input."
+      },
+      "layout": "Large hero illustration on top. A masked monospace input field for the account code with an eye toggle. A large primary CTA 'Login / Create Account'. A list of previously used accounts below the CTA with an 'X' to remove them."
+    },
+    {
+      "name": "Home",
+      "purpose": "List of active lobbies a user has created or joined.",
+      "states": {
+        "loading": "Skeleton cards mimicking lobby rows.",
+        "empty": "Empty desk illustration with 'No lobbies yet. Join or create one!' text.",
+        "error": "Error message with 'Retry' button."
+      },
+      "layout": "Sticky 'Create Lobby' and 'Join Lobby' buttons at bottom. The list shows colorful rounded cards for each lobby. Admin lobbies clearly tagged. Each card shows the lobby name and participant count."
+    },
+    {
+      "name": "Join / Create Flow",
+      "purpose": "Simple form to enter the 8-letter code or display a newly generated one.",
+      "states": {
+        "loading": "Spinner during validation.",
+        "empty": "N/A",
+        "error": "Inline validation errors."
+      },
+      "layout": "For Create: Big typography displaying the 8-letter code, share button, and 'Continue to Lobby' sticky CTA. For Join: Big text input for the 8-letter code and a second input for Display Name, followed by a sticky 'Join' CTA."
+    },
+    {
+      "name": "Lobby Detail",
+      "purpose": "The main classroom hub showing all students and their scores.",
+      "states": {
+        "loading": "Skeleton list of students.",
+        "empty": "Empty state illustration if no students have joined yet.",
+        "error": "Error fetching students."
+      },
+      "layout": "Top section: Big 8-letter code (copyable). Settings gear icon top right for Admin. Main content: List of student rows. Each row has an avatar (initials), student name, and a prominent score badge (colored Red/Yellow/Green based on the score). Tapping a student opens the Score Detail page."
+    },
+    {
+      "name": "Student Score Detail",
+      "purpose": "Focus view on a specific student's score, gauge, and score history.",
+      "states": {
+        "loading": "Skeleton for gauge and history list.",
+        "empty": "No score history recorded yet.",
+        "error": "Failed to load score data."
+      },
+      "layout": "Top section: A large semi-circle animated progress gauge (0-100 range) divided into red (0-30), yellow (31-60), green (61-100) zones. A big odometer-style score number sits in the center of the arc. Below the gauge: Admin controls (Pill-shaped buttons for -10, -5, -1, +1, +5, +10, and a manual input field). Bottom section: A scrolling history list of score changes (timestamp, amount changed, admin name)."
+    },
+    {
+      "name": "Settings / Edit Modal",
+      "purpose": "Admin controls for the lobby or specific user.",
+      "states": {
+        "loading": "Spinner over action buttons.",
+        "empty": "N/A",
+        "error": "Toast for failed action."
+      },
+      "layout": "Bottom sheet or modal. Options for Admin: Edit user name, Remove user, Toggle 'Allow Users to See Scores', Delete Lobby. Form elements are large and tap-friendly."
+    }
+  ],
+  "images": {
+    "auth_hero": {
+      "url": "https://images.unsplash.com/photo-1614064744856-63503e865a23?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHwzZCUyMG1vZGVybiUyMGxvY2slMjBpY29uJTIwb24lMjBjbGVhbiUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg4OTY4Mjk4fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern lock concept for secure auth"
+    },
+    "lobby_hero": {
+      "url": "https://images.unsplash.com/photo-1577896851231-70ef18881754?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxjbGFzc3Jvb20lMjBzdHVkZW50cyUyMGxlYXJuaW5nJTIwY29sb3JmdWwlMjBwaG90b3xlbnwwfHx8fDE3ODg5NjgyOTh8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Classroom learning background"
+    },
+    "empty_state": {
+      "url": "https://images.unsplash.com/photo-1487700160041-babef9c3cb55?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2OTV8MHwxfHNlYXJjaHwxfHxlbXB0eSUyMGRlc2slMjBwbGFudCUyMG1pbmltYWwlMjBwaG90b3xlbnwwfHx8fDE3ODg5NjgyOTh8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Minimal empty desk with a plant"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the Tactile / Playful LIGHT personality. Use saturated, vibrant colors (Mint, Yellow, Green, Red) on clean white/cream surfaces. Keep border radii large (lg to pill).",
+    "Auth Flow: Implement Mullvad-style logic. Generate a random 16-digit account code for first-time users. Hide the input with dots by default, but allow toggling visibility. Use a monospace font (or tight textFontFamily) for the code.",
+    "Semi-Circle Gauge: Build a semi-circle gauge (using react-native-svg) for the score (0-100). The arc should have 3 colored sections: Red (0-30), Yellow (31-60), Green (61-100). Place the current score number large in the center of the arc.",
+    "Admin Score Controls: Group the score adjustment buttons (-10, -5, -1, +1, +5, +10) into a tactile, pill-based control row. Use haptics heavily here (impactLight for +/- 1, impactMedium for +/- 5, impactHeavy for +/- 10).",
+    "Navigation constraints: Users cannot leave the lobby. Do not provide a 'Leave' button for students. Only Admin can delete the lobby or remove users.",
+    "Avatar fallback: Since no real logos are involved, use initials inside a 'brandTertiary' tinted circle for student avatars.",
+    "Keep it basic and robust: 'Nimic extra - doar cerințele de bază'. Stick strictly to the auth, lobby creation/joining, list view, and score editing/history flows.",
+    "For the image with text over it (like a lobby card cover), MUST use a 3-stop vertical gradient scrim (transparent -> 20% surfaceInverse -> 70%+ surfaceInverse) to ensure text contrast."
+  ],
+  "haptics": {
+    "score_adjust_minor": "impactLight",
+    "score_adjust_medium": "impactMedium",
+    "score_adjust_major": "impactHeavy",
+    "join_lobby": "impactMedium",
+    "button_press": "selection"
+  }
+}
