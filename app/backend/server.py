@@ -7,26 +7,11 @@ import logging
 import hashlib
 import secrets
 import string
-import base64
-import asyncio
-import requests
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
-
-# App source roots for the hidden owner source viewer
-APP_ROOT = Path("/app")
-SOURCE_INCLUDE_DIRS = [
-    APP_ROOT / "backend",
-    APP_ROOT / "frontend" / "app",
-    APP_ROOT / "frontend" / "src",
-]
-SOURCE_INCLUDE_EXTS = {".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".md"}
-SOURCE_EXCLUDE_NAMES = {".env", "yarn.lock", "package-lock.json"}
-SOURCE_EXCLUDE_DIRS = {"node_modules", ".metro-cache", ".expo", "__pycache__", "dist", "build"}
-SOURCE_MAX_FILE_BYTES = 300_000
 
 
 ROOT_DIR = Path(__file__).parent
@@ -84,7 +69,6 @@ class LoginRequest(BaseModel):
 class UserOut(BaseModel):
     user_id: str
     created_at: str
-    is_super_admin: bool = False
 
 
 class LobbySettings(BaseModel):
@@ -163,14 +147,6 @@ async def get_current_user(authorization: Optional[str] = Header(None)) -> dict:
     return user
 
 
-def is_super(user: dict) -> bool:
-    return bool(user.get("is_super_admin", False))
-
-
-def is_admin_of(lobby: dict, user: dict) -> bool:
-    return lobby["admin_id"] == user["user_id"] or is_super(user)
-
-
 # =========================================================================
 # Auth Endpoints
 # =========================================================================
@@ -204,213 +180,12 @@ async def login(req: LoginRequest):
     user = await db.users.find_one({"code_hash": hash_code(code)}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Invalid account code")
-    return UserOut(user_id=user["user_id"], created_at=user["created_at"], is_super_admin=is_super(user))
+    return UserOut(user_id=user["user_id"], created_at=user["created_at"])
 
 
 @api_router.get("/auth/me", response_model=UserOut)
 async def me(user: dict = Depends(get_current_user)):
-    return UserOut(user_id=user["user_id"], created_at=user["created_at"], is_super_admin=is_super(user))
-
-
-@api_router.post("/auth/promote-super-admin", response_model=UserOut)
-async def promote_super_admin(user: dict = Depends(get_current_user)):
-    """Hidden endpoint: promotes current authenticated user to super admin.
-    Gated only by the client-side easter egg (40 taps). The user's own bearer
-    token is required, so nobody else can promote them silently."""
-    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"is_super_admin": True}})
-    return UserOut(user_id=user["user_id"], created_at=user["created_at"], is_super_admin=True)
-
-
-class SourceFile(BaseModel):
-    path: str
-    content: str
-    size: int
-    truncated: bool = False
-
-
-@api_router.get("/dev/source", response_model=List[SourceFile])
-async def get_source(user: dict = Depends(get_current_user)):
-    """Returns all app source files. Super admin only."""
-    if not is_super(user):
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    files: List[SourceFile] = []
-    for base in SOURCE_INCLUDE_DIRS:
-        if not base.exists():
-            continue
-        for p in sorted(base.rglob("*")):
-            if not p.is_file():
-                continue
-            if any(part in SOURCE_EXCLUDE_DIRS for part in p.parts):
-                continue
-            if p.name in SOURCE_EXCLUDE_NAMES:
-                continue
-            if p.suffix.lower() not in SOURCE_INCLUDE_EXTS:
-                continue
-            try:
-                raw = p.read_bytes()
-            except Exception:
-                continue
-            size = len(raw)
-            truncated = False
-            if size > SOURCE_MAX_FILE_BYTES:
-                raw = raw[:SOURCE_MAX_FILE_BYTES]
-                truncated = True
-            try:
-                content = raw.decode("utf-8", errors="replace")
-            except Exception:
-                continue
-            rel = str(p.relative_to(APP_ROOT))
-            files.append(SourceFile(path=rel, content=content, size=size, truncated=truncated))
-    return files
-
-
-# =========================================================================
-# GitHub Push (super admin only)
-# =========================================================================
-class GithubPushRequest(BaseModel):
-    token: str
-    owner: str
-    repo: str
-    branch: str = "main"
-    message: Optional[str] = None
-
-
-class GithubPushResponse(BaseModel):
-    commit_sha: str
-    commit_url: str
-    files_pushed: int
-    branch: str
-
-
-def _collect_repo_files() -> List[dict]:
-    """Return list of {path, content_bytes} for every source file to push."""
-    out: List[dict] = []
-    for base in SOURCE_INCLUDE_DIRS:
-        if not base.exists():
-            continue
-        for p in sorted(base.rglob("*")):
-            if not p.is_file():
-                continue
-            if any(part in SOURCE_EXCLUDE_DIRS for part in p.parts):
-                continue
-            if p.name in SOURCE_EXCLUDE_NAMES:
-                continue
-            if p.suffix.lower() not in SOURCE_INCLUDE_EXTS:
-                continue
-            try:
-                raw = p.read_bytes()
-            except Exception:
-                continue
-            rel = str(p.relative_to(APP_ROOT))
-            out.append({"path": rel, "bytes": raw})
-    return out
-
-
-def _gh_push_sync(token: str, owner: str, repo: str, branch: str, message: str) -> dict:
-    """Synchronous GitHub push using the Git Data API. Runs in a thread."""
-    session = requests.Session()
-    session.headers.update({
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "ClassLobby-Push/1.0",
-    })
-    api = f"https://api.github.com/repos/{owner}/{repo}"
-
-    # 1. Verify repo exists
-    r = session.get(api, timeout=20)
-    if r.status_code == 404:
-        raise HTTPException(status_code=404, detail="Repository not found (create it on GitHub first).")
-    if r.status_code == 401:
-        raise HTTPException(status_code=401, detail="GitHub token invalid or missing scope.")
-    if not r.ok:
-        raise HTTPException(status_code=502, detail=f"GitHub error: {r.status_code} {r.text[:200]}")
-
-    # 2. Get current ref for branch (may not exist yet)
-    ref_url = f"{api}/git/ref/heads/{branch}"
-    r = session.get(ref_url, timeout=20)
-    parent_sha: Optional[str] = None
-    base_tree_sha: Optional[str] = None
-    if r.status_code == 200:
-        parent_sha = r.json()["object"]["sha"]
-        rc = session.get(f"{api}/git/commits/{parent_sha}", timeout=20)
-        if rc.ok:
-            base_tree_sha = rc.json().get("tree", {}).get("sha")
-    elif r.status_code != 404:
-        raise HTTPException(status_code=502, detail=f"GitHub ref lookup failed: {r.status_code} {r.text[:200]}")
-
-    # 3. Collect files and create blobs
-    files = _collect_repo_files()
-    if not files:
-        raise HTTPException(status_code=500, detail="No source files found to push.")
-
-    tree_items = []
-    for f in files:
-        b64 = base64.b64encode(f["bytes"]).decode("ascii")
-        rb = session.post(
-            f"{api}/git/blobs",
-            json={"content": b64, "encoding": "base64"},
-            timeout=30,
-        )
-        if not rb.ok:
-            raise HTTPException(status_code=502, detail=f"Blob create failed for {f['path']}: {rb.status_code} {rb.text[:200]}")
-        tree_items.append({
-            "path": f["path"],
-            "mode": "100644",
-            "type": "blob",
-            "sha": rb.json()["sha"],
-        })
-
-    # 4. Create tree
-    tree_payload = {"tree": tree_items}
-    if base_tree_sha:
-        tree_payload["base_tree"] = base_tree_sha
-    rt = session.post(f"{api}/git/trees", json=tree_payload, timeout=30)
-    if not rt.ok:
-        raise HTTPException(status_code=502, detail=f"Tree create failed: {rt.status_code} {rt.text[:200]}")
-    tree_sha = rt.json()["sha"]
-
-    # 5. Create commit
-    commit_payload = {"message": message, "tree": tree_sha}
-    if parent_sha:
-        commit_payload["parents"] = [parent_sha]
-    rc = session.post(f"{api}/git/commits", json=commit_payload, timeout=30)
-    if not rc.ok:
-        raise HTTPException(status_code=502, detail=f"Commit create failed: {rc.status_code} {rc.text[:200]}")
-    commit = rc.json()
-    commit_sha = commit["sha"]
-
-    # 6. Update or create ref
-    if parent_sha:
-        ru = session.patch(f"{api}/git/refs/heads/{branch}", json={"sha": commit_sha, "force": False}, timeout=20)
-    else:
-        ru = session.post(f"{api}/git/refs", json={"ref": f"refs/heads/{branch}", "sha": commit_sha}, timeout=20)
-    if not ru.ok:
-        raise HTTPException(status_code=502, detail=f"Ref update failed: {ru.status_code} {ru.text[:200]}")
-
-    return {
-        "commit_sha": commit_sha,
-        "commit_url": f"https://github.com/{owner}/{repo}/commit/{commit_sha}",
-        "files_pushed": len(files),
-        "branch": branch,
-    }
-
-
-@api_router.post("/dev/push-github", response_model=GithubPushResponse)
-async def push_to_github(body: GithubPushRequest, user: dict = Depends(get_current_user)):
-    if not is_super(user):
-        raise HTTPException(status_code=403, detail="Forbidden")
-    token = (body.token or "").strip()
-    owner = (body.owner or "").strip()
-    repo = (body.repo or "").strip()
-    branch = (body.branch or "main").strip() or "main"
-    if not token or not owner or not repo:
-        raise HTTPException(status_code=400, detail="token, owner and repo are required")
-    message = (body.message or f"ClassLobby push {now_iso()}").strip()[:200]
-
-    result = await asyncio.to_thread(_gh_push_sync, token, owner, repo, branch, message)
-    return GithubPushResponse(**result)
+    return UserOut(user_id=user["user_id"], created_at=user["created_at"])
 
 
 # =========================================================================
@@ -430,7 +205,7 @@ async def _lobby_by_id(lobby_id: str) -> dict:
     return lobby
 
 
-async def _serialize_lobby(lobby: dict, user: dict) -> LobbyOut:
+async def _serialize_lobby(lobby: dict, user_id: str) -> LobbyOut:
     member_count = await db.members.count_documents({"lobby_id": lobby["id"]})
     return LobbyOut(
         id=lobby["id"],
@@ -439,7 +214,7 @@ async def _serialize_lobby(lobby: dict, user: dict) -> LobbyOut:
         admin_id=lobby["admin_id"],
         created_at=lobby["created_at"],
         settings=LobbySettings(**lobby.get("settings", {})),
-        is_admin=is_admin_of(lobby, user),
+        is_admin=(lobby["admin_id"] == user_id),
         member_count=member_count,
     )
 
@@ -465,15 +240,12 @@ async def create_lobby(body: LobbyCreate, user: dict = Depends(get_current_user)
         "settings": {"allow_everyone_to_see_scores": False},
     }
     await db.lobbies.insert_one(doc)
-    return await _serialize_lobby(doc, user)
+    return await _serialize_lobby(doc, user["user_id"])
 
 
 @api_router.get("/lobbies", response_model=List[LobbyOut])
 async def list_my_lobbies(user: dict = Depends(get_current_user)):
     uid = user["user_id"]
-    if is_super(user):
-        all_lobbies = await db.lobbies.find({}, {"_id": 0}).to_list(10000)
-        return [await _serialize_lobby(l, user) for l in all_lobbies]
     # lobbies user is admin of
     admin_lobbies = await db.lobbies.find({"admin_id": uid}, {"_id": 0}).to_list(1000)
     # lobbies user is a member of
@@ -489,7 +261,7 @@ async def list_my_lobbies(user: dict = Depends(get_current_user)):
         if lobby["id"] in seen:
             continue
         seen.add(lobby["id"])
-        result.append(await _serialize_lobby(lobby, user))
+        result.append(await _serialize_lobby(lobby, uid))
     return result
 
 
@@ -497,12 +269,12 @@ async def list_my_lobbies(user: dict = Depends(get_current_user)):
 async def get_lobby(code: str, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_code(code)
     uid = user["user_id"]
-    # must be admin or member (super admin bypasses)
-    if not is_admin_of(lobby, user):
+    # must be admin or member
+    if lobby["admin_id"] != uid:
         is_member = await db.members.find_one({"lobby_id": lobby["id"], "user_id": uid})
         if not is_member:
             raise HTTPException(status_code=403, detail="You are not part of this lobby")
-    return await _serialize_lobby(lobby, user)
+    return await _serialize_lobby(lobby, uid)
 
 
 @api_router.post("/lobbies/join", response_model=MemberOut)
@@ -540,7 +312,7 @@ async def join_lobby(body: JoinLobbyRequest, user: dict = Depends(get_current_us
 @api_router.delete("/lobbies/{lobby_id}")
 async def delete_lobby(lobby_id: str, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
-    if not is_admin_of(lobby, user):
+    if lobby["admin_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Only the admin can delete this lobby")
     await db.lobbies.delete_one({"id": lobby_id})
     await db.members.delete_many({"lobby_id": lobby_id})
@@ -551,12 +323,12 @@ async def delete_lobby(lobby_id: str, user: dict = Depends(get_current_user)):
 @api_router.patch("/lobbies/{lobby_id}/settings", response_model=LobbyOut)
 async def update_settings(lobby_id: str, body: SettingsUpdateRequest, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
-    if not is_admin_of(lobby, user):
+    if lobby["admin_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Only the admin can change settings")
     settings = {"allow_everyone_to_see_scores": bool(body.allow_everyone_to_see_scores)}
     await db.lobbies.update_one({"id": lobby_id}, {"$set": {"settings": settings}})
     lobby["settings"] = settings
-    return await _serialize_lobby(lobby, user)
+    return await _serialize_lobby(lobby, user["user_id"])
 
 
 # =========================================================================
@@ -566,7 +338,7 @@ async def update_settings(lobby_id: str, body: SettingsUpdateRequest, user: dict
 async def list_members(lobby_id: str, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
     uid = user["user_id"]
-    is_admin = is_admin_of(lobby, user)
+    is_admin = lobby["admin_id"] == uid
     if not is_admin:
         is_member = await db.members.find_one({"lobby_id": lobby_id, "user_id": uid})
         if not is_member:
@@ -594,7 +366,7 @@ async def list_members(lobby_id: str, user: dict = Depends(get_current_user)):
 async def get_member(lobby_id: str, member_id: str, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
     uid = user["user_id"]
-    is_admin = is_admin_of(lobby, user)
+    is_admin = lobby["admin_id"] == uid
 
     member = await db.members.find_one({"id": member_id, "lobby_id": lobby_id}, {"_id": 0})
     if not member:
@@ -617,7 +389,7 @@ async def get_member(lobby_id: str, member_id: str, user: dict = Depends(get_cur
 @api_router.post("/lobbies/{lobby_id}/members", response_model=MemberOut)
 async def add_member_manually(lobby_id: str, body: AddMemberRequest, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
-    if not is_admin_of(lobby, user):
+    if lobby["admin_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Only admin can add members")
 
     display_name = (body.display_name or "").strip()
@@ -643,7 +415,7 @@ async def add_member_manually(lobby_id: str, body: AddMemberRequest, user: dict 
 async def edit_member_name(lobby_id: str, member_id: str, body: EditNameRequest,
                             user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
-    if not is_admin_of(lobby, user):
+    if lobby["admin_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Only admin can edit names")
 
     display_name = (body.display_name or "").strip()
@@ -667,7 +439,7 @@ async def edit_member_name(lobby_id: str, member_id: str, body: EditNameRequest,
 async def change_score(lobby_id: str, member_id: str, body: ScoreChangeRequest,
                         user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
-    if not is_admin_of(lobby, user):
+    if lobby["admin_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Only admin can change scores")
 
     member = await db.members.find_one({"id": member_id, "lobby_id": lobby_id}, {"_id": 0})
@@ -699,7 +471,7 @@ async def change_score(lobby_id: str, member_id: str, body: ScoreChangeRequest,
 @api_router.delete("/lobbies/{lobby_id}/members/{member_id}")
 async def remove_member(lobby_id: str, member_id: str, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
-    if not is_admin_of(lobby, user):
+    if lobby["admin_id"] != user["user_id"]:
         raise HTTPException(status_code=403, detail="Only admin can remove members")
 
     result = await db.members.delete_one({"id": member_id, "lobby_id": lobby_id})
@@ -713,7 +485,7 @@ async def remove_member(lobby_id: str, member_id: str, user: dict = Depends(get_
 async def get_history(lobby_id: str, member_id: str, user: dict = Depends(get_current_user)):
     lobby = await _lobby_by_id(lobby_id)
     uid = user["user_id"]
-    is_admin = is_admin_of(lobby, user)
+    is_admin = lobby["admin_id"] == uid
 
     if not is_admin:
         # only allowed if allow_everyone_to_see_scores OR viewing own
