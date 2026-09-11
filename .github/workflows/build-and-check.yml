@@ -53,7 +53,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: TypeScript check
         run: npx tsc --noEmit
@@ -76,7 +76,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
