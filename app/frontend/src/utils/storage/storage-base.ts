@@ -5,6 +5,22 @@
 export type StorageItemValue = string | number | boolean | null;
 
 export abstract class StorageBase {
+  // Public API surface — declared here (as abstract) purely so `keyof
+  // StorageBase` includes them, which is what makes the AssertNoExtras
+  // guard in index.ts work. The real implementations live in Storage.
+  abstract getItem<Fallback extends StorageItemValue>(
+    key: string,
+    fallback: Fallback,
+  ): Promise<Fallback | null>;
+  abstract setItem<Value extends StorageItemValue>(key: string, value: Value): Promise<boolean>;
+  abstract removeItem(key: string): Promise<boolean>;
+  abstract secureGet<Fallback extends StorageItemValue>(
+    key: string,
+    fallback: Fallback,
+  ): Promise<Fallback | null>;
+  abstract secureSet<Value extends StorageItemValue>(key: string, value: Value): Promise<boolean>;
+  abstract secureRemove(key: string): Promise<boolean>;
+
   // Parses a raw string read from AsyncStorage/SecureStore back into its
   // original type. Returns `fallback` on any miss or parse failure so a
   // missing key is indistinguishable from a stored `null` at the call site.
@@ -31,4 +47,7 @@ export abstract class StorageBase {
 
 // Compile-time guard used by index.ts: ensures Storage doesn't declare any
 // public method beyond what's declared here, catching accidental API drift.
-export type AssertNoExtras<T extends never> = T;
+// Usage: type _NoExtras = AssertNoExtras<Exclude<keyof Storage, keyof StorageBase>>;
+// If Storage adds a method not declared here, that Exclude produces a
+// non-never union, which fails to satisfy `extends never` below.
+export type AssertNoExtras<T extends never = never> = T;
