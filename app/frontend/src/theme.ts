@@ -45,7 +45,7 @@ export const defaultScheme = "light" satisfies ColorScheme;
 export const themes: { light: ThemeColors; dark?: ThemeColors } = { light };
 
 export function setColorScheme(scheme: ColorScheme | null) {
-  Appearance.setColorScheme?.(scheme);
+  Appearance.setColorScheme?.(scheme as Parameters<typeof Appearance.setColorScheme>[0]);
 }
 
 setColorScheme?.(themes.dark ? null : defaultScheme);
