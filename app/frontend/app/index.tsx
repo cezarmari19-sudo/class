@@ -10,21 +10,30 @@ export default function Index() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       const code = await getAccountCode();
+      if (cancelled) return;
       if (!code) {
         router.replace("/auth");
         return;
       }
       try {
         await api.me();
+        if (cancelled) return;
         router.replace("/lobbies");
       } catch {
+        if (cancelled) return;
         router.replace("/auth");
       } finally {
-        setReady(true);
+        if (!cancelled) setReady(true);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   return (
