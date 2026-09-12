@@ -107,7 +107,16 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          URL=$(eas build:list --platform android --limit 1 --non-interactive --json | node -pe 'JSON.parse(require("fs").readFileSync("/dev/stdin","utf8"))[0].artifacts.buildUrl')
+          eas build:list --platform android --limit 1 --non-interactive --json > builds.json
+          echo "--- raw eas build:list output ---"
+          cat builds.json
+          echo "--- end raw output ---"
+          URL=$(node -pe 'JSON.parse(require("fs").readFileSync("builds.json","utf8"))[0].artifacts.buildUrl')
+          echo "Extracted URL: $URL"
+          if [ -z "$URL" ] || [ "$URL" = "undefined" ]; then
+            echo "::error::Could not extract APK build URL from eas build:list output"
+            exit 1
+          fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
 
       - name: Download APK
