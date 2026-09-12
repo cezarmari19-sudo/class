@@ -101,3 +101,21 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: eas build:list --platform android --limit 1 --non-interactive
+
+      - name: Get APK download URL
+        id: apk_url
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          URL=$(eas build:list --platform android --limit 1 --non-interactive --json | node -pe 'JSON.parse(require("fs").readFileSync("/dev/stdin","utf8"))[0].artifacts.buildUrl')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Download APK
+        run: curl -L "${{ steps.apk_url.outputs.url }}" -o app-release.apk
+
+      - name: Upload APK as GitHub Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: frontend/app-release.apk
+          retention-days: 30
