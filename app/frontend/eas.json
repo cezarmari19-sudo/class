@@ -8,7 +8,10 @@
       "android": {
         "buildType": "apk"
       },
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://class-1fpq.onrender.com"
+      }
     },
     "production": {
       "android": {
