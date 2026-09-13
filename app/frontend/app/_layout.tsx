@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/react-native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
 import { LogBox } from "react-native";
@@ -10,13 +9,6 @@ import { ToastHost } from "@/src/components/toast";
 import { queryClient } from "@/src/query-client";
 
 LogBox.ignoreAllLogs(true);
-
-Sentry.init({
-  dsn: "https://8a0f5faf5d5e4b88c34ceac80de68b06@o4512079794667520.ingest.de.sentry.io/4512079802400848",
-  enableAutoSessionTracking: true,
-  tracesSampleRate: 1.0,
-  debug: false,
-});
 
 export default function RootLayout() {
   return (
