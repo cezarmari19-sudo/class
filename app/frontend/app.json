@@ -30,6 +30,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d6165c52-e131-42ee-b7da-22923e4ae439"
+      }
+    },
+    "owner": "cezarmari19-sufo"
   }
 }
