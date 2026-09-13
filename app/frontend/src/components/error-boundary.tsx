@@ -41,6 +41,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
     try {
       await reloadAppAsync();
     } catch {
+      // Reload is unavailable in some environments; retry the render instead.
       resetError();
     }
   };
@@ -75,16 +76,70 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
 }
 
 const useStyles = makeStyles((colors) => ({
-  container: { flex: 1, backgroundColor: colors.surface, justifyContent: "center", padding: 24 },
-  content: { alignItems: "center", gap: 12 },
-  title: { color: colors.onSurface, fontSize: 22, fontWeight: "700", textAlign: "center" },
-  message: { color: colors.muted, fontSize: 15, textAlign: "center" },
-  devMessage: { color: colors.error, fontSize: 13, textAlign: "center" },
-  button: { marginTop: 8, backgroundColor: colors.brandPrimary, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 14, minWidth: 180 },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { color: colors.onBrandPrimary, fontSize: 15, fontWeight: "600", textAlign: "center" },
-  detailsToggle: { color: colors.muted, fontSize: 13, textDecorationLine: "underline", paddingVertical: 8 },
-  details: { marginTop: 16, maxHeight: 260, borderRadius: 12, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceSecondary },
-  detailsContent: { padding: 12 },
-  detailsText: { color: colors.onSurfaceSecondary, fontSize: 12, lineHeight: 18, fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }) },
+  container: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    padding: 24,
+  },
+  content: {
+    alignItems: "center",
+    gap: 12,
+  },
+  title: {
+    color: colors.onSurface,
+    fontSize: 22,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  message: {
+    color: colors.muted,
+    fontSize: 15,
+    textAlign: "center",
+  },
+  devMessage: {
+    color: colors.error,
+    fontSize: 13,
+    textAlign: "center",
+  },
+  button: {
+    marginTop: 8,
+    backgroundColor: colors.brandPrimary,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    minWidth: 180,
+  },
+  buttonPressed: {
+    opacity: 0.85,
+  },
+  buttonText: {
+    color: colors.onBrandPrimary,
+    fontSize: 15,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  detailsToggle: {
+    color: colors.muted,
+    fontSize: 13,
+    textDecorationLine: "underline",
+    paddingVertical: 8,
+  },
+  details: {
+    marginTop: 16,
+    maxHeight: 260,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  detailsContent: {
+    padding: 12,
+  },
+  detailsText: {
+    color: colors.onSurfaceSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
+  },
 }));
