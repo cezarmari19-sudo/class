@@ -92,6 +92,9 @@ jobs:
             echo "EAS project already configured."
           fi
 
+      - name: Debug - show real expo config error
+        run: npx expo config --json || true
+
       - name: Build APK on EAS
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
