@@ -44,6 +44,8 @@ jobs:
     defaults:
       run:
         working-directory: app/frontend
+    env:
+      NODE_OPTIONS: --no-experimental-strip-types
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +69,8 @@ jobs:
     defaults:
       run:
         working-directory: app/frontend
+    env:
+      NODE_OPTIONS: --no-experimental-strip-types
     steps:
       - uses: actions/checkout@v4
 
