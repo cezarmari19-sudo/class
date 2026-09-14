@@ -24,9 +24,7 @@
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-status-bar",
-      "expo-haptics",
-      "expo-clipboard"
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true
