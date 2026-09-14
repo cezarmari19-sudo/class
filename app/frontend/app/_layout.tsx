@@ -14,7 +14,7 @@ LogBox.ignoreAllLogs(true);
 
 // Catch errors outside of React's render (async event handlers, unhandled
 // promise rejections) that the ErrorBoundary below cannot see.
-const ErrorUtilsGlobal = (global as any).ErrorUtils;
+const ErrorUtilsGlobal = (globalThis as any).ErrorUtils;
 if (ErrorUtilsGlobal) {
   const defaultHandler = ErrorUtilsGlobal.getGlobalHandler();
   ErrorUtilsGlobal.setGlobalHandler((error: Error, isFatal?: boolean) => {
