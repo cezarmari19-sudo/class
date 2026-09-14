@@ -24,17 +24,17 @@
       "expo-image",
       "expo-secure-store",
       "expo-web-browser",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-haptics",
+      "expo-clipboard"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
       "eas": {
         "projectId": "ce2a1b5c-71f7-4d24-b3a6-ac3db217bc10"
       }
-    },
-    "owner": "js8sjsjs-team"
+    }
   }
 }
