@@ -7,6 +7,7 @@ import { Component, type ErrorInfo, type PropsWithChildren, useState } from "rea
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { makeStyles } from "@/src/theme";
+import { saveCrashLog } from "@/src/utils/crash-log";
 
 type ErrorBoundaryState = { error: Error | null };
 
@@ -19,6 +20,7 @@ export class ErrorBoundary extends Component<PropsWithChildren, ErrorBoundarySta
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("[ErrorBoundary] render crash:", error, info.componentStack ?? "");
+    saveCrashLog(error, `render (componentStack: ${info.componentStack ?? "n/a"})`);
   }
 
   resetError = (): void => {
