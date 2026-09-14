@@ -30,9 +30,11 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "d6165c52-e131-42ee-b7da-22923e4ae439"
+        "projectId": "ce2a1b5c-71f7-4d24-b3a6-ac3db217bc10"
       }
-    }
+    },
+    "owner": "js8sjsjs-team"
   }
 }
